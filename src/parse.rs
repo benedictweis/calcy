@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use crate::parse::Expr::{Add, Div, Mul, Pow, Sub, Value};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParseError {
     ValueError(String),
     Unknown(String),

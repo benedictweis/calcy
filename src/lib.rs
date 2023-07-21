@@ -6,6 +6,8 @@ use crate::parse::{parse_string, ParseError};
 
 pub mod parse;
 pub mod eval;
+#[cfg(test)]
+mod tests;
 
 pub fn solve(input: String) -> Result<f64, ParseError> {
     solve_with::<f64>(input)
