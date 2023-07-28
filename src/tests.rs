@@ -83,4 +83,3 @@ fn edge_cases() {
     assert_eq!(solve("0.5*0.5".into()), Ok(0.25));
     assert_nearly_eq(solve("0.1+0.2".into()), 0.3);
 }
-
