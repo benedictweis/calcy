@@ -4,3 +4,9 @@
 
 # 🧮 calcy 
 A small and simple math solving libaray for rust
+
+## usage
+
+'''bash
+test123
+'''
