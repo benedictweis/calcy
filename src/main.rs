@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use crate::cli::Args;
 use clap::Parser;
 use std::io::{stdin, stdout, Write};
 use std::time::Instant;
+use calcy::solve;
 
 mod cli;
 
@@ -37,12 +39,15 @@ fn benchmark_eval(equation: String) {
 }
 
 fn repl(equations: Vec<String>, benchmark: bool) {
-    equations.into_iter().for_each(move |e| {
+
+    let mut variables = HashMap::new();
+
+    equations.into_iter().for_each( |e| {
         let input = move || {
             println!("{e}");
             e.clone()
         };
-        repl_eval(benchmark, &input);
+        repl_eval(benchmark, &mut variables, &input);
     });
 
     let line = || {
@@ -52,21 +57,35 @@ fn repl(equations: Vec<String>, benchmark: bool) {
     };
 
     loop {
-        let next = repl_eval(benchmark, &line);
+        let next = repl_eval(benchmark, &mut variables, &line);
         if !next {
             return;
         }
     }
 }
 
-fn repl_eval(benchmark: bool, input_fn: &dyn Fn() -> String) -> bool {
+fn repl_eval(benchmark: bool, variables: &mut HashMap<String,f64>, input_fn: &dyn Fn() -> String) -> bool {
     print!("?: ");
     stdout().flush().unwrap();
 
-    let input = input_fn();
+    let mut input = input_fn();
 
     if input.to_lowercase() == "exit" {
         return false;
+    }
+
+    if input.to_lowercase() == "vars" {
+        println!("{:?}", variables);
+        return true;
+    }
+
+    if input.contains('=') {
+        retrieve_variable(&input, variables);
+        return true;
+    }
+
+    for (key, value) in variables {
+        input = input.replace(key, &value.to_string());
     }
 
     if benchmark {
@@ -76,4 +95,9 @@ fn repl_eval(benchmark: bool, input_fn: &dyn Fn() -> String) -> bool {
     }
 
     true
+}
+
+fn retrieve_variable(input: &str, variables: &mut HashMap<String, f64>) {
+    let (name, value) = input.split_once('=').unwrap();
+    variables.insert(name.into(), solve(value.into()).unwrap());
 }
