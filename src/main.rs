@@ -1,10 +1,10 @@
 use crate::cli::Args;
-use calcy::solve;
 use clap::Parser;
 use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
 use std::time::Instant;
 use std::{fs, process};
+use log::debug;
 
 mod cli;
 
@@ -16,6 +16,7 @@ fn main() {
     let mut variables = HashMap::new();
 
     if let Some(file_path) = args.file {
+        debug!("Attempting to read from file {}", file_path.display());
         let contents = fs::read_to_string(file_path).expect("could not read from file");
         let lines = contents.lines();
         lines.for_each(|l| interpret_statement(l.into(), args.benchmark, &mut variables));
@@ -50,7 +51,7 @@ fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashM
 
 fn retrieve_variable(input: &str, variables: &mut HashMap<String, f64>) {
     let (name, value) = input.split_once('=').unwrap();
-    variables.insert(name.into(), solve(value.into()).unwrap());
+    variables.insert(name.into(), calcy::solve_vars(value.into(), variables).unwrap());
 }
 
 fn eval(equation: String, benchmark: bool, variables: &HashMap<String, f64>) {
