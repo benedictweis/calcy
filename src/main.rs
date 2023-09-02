@@ -3,8 +3,8 @@ use calcy::solve;
 use clap::Parser;
 use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
-use std::process;
 use std::time::Instant;
+use std::{fs, process};
 
 mod cli;
 
@@ -14,6 +14,13 @@ fn main() {
     env_logger::init();
 
     let mut variables = HashMap::new();
+
+    if let Some(file_path) = args.file {
+        let contents = fs::read_to_string(file_path).expect("could not read from file");
+        let lines = contents.lines();
+        lines.for_each(|l| interpret_statement(l.into(), args.benchmark, &mut variables));
+    }
+
     args.equations
         .into_iter()
         .for_each(|e| interpret_statement(e, args.benchmark, &mut variables));
@@ -24,7 +31,6 @@ fn main() {
 }
 
 fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashMap<String, f64>) {
-
     if statement.to_lowercase() == "exit" {
         process::exit(0);
     }
@@ -63,12 +69,11 @@ fn eval(equation: String, benchmark: bool, variables: &HashMap<String, f64>) {
     }
 }
 
-
 fn repl(variables: &mut HashMap<String, f64>, benchmark: bool) {
     loop {
         print!("?: ");
         stdout().flush().unwrap();
-        interpret_statement(read_line(),benchmark, variables);
+        interpret_statement(read_line(), benchmark, variables);
     }
 }
 

@@ -1,11 +1,11 @@
-use std::any::type_name;
 use crate::eval::{eval_expr, eval_expr_with, EvalError};
 use crate::parse::{parse_string, ParseError};
+use log::{debug, info};
+use std::any::type_name;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Add, Div, Mul, Sub};
 use std::str::FromStr;
-use log::{debug, info};
 
 pub mod eval;
 pub mod parse;
@@ -75,7 +75,10 @@ where
         + Mul<Output = T>
         + Div<Output = T>,
 {
-    info!("Solving equation {input} with type {} and variables {variables:?}", type_name::<T>());
+    info!(
+        "Solving equation {input} with type {} and variables {variables:?}",
+        type_name::<T>()
+    );
     let parsed_input = parse_string::<T>(input)?;
     debug!("Parsed input: {parsed_input:?}");
     Ok(eval_expr_with::<T>(&parsed_input, variables)?)
