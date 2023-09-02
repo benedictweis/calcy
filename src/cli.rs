@@ -6,7 +6,6 @@ use std::path::PathBuf;
 #[command(author, version, about, long_about = None)]
 pub struct Args {
     /// Equations to evaluate
-    #[clap(required_unless_present_any = ["interactive","file"])]
     pub equations: Vec<String>,
 
     /// Evaluation times of each equation

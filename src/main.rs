@@ -1,17 +1,21 @@
 use crate::cli::Args;
 use clap::Parser;
+use log::debug;
 use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
 use std::time::Instant;
 use std::{fs, process};
-use log::debug;
 
 mod cli;
 
 fn main() {
-    let args = Args::parse();
+    let mut args = Args::parse();
 
     env_logger::init();
+
+    if args.file.is_none() && args.equations.is_empty() {
+        args.interactive = true;
+    }
 
     let mut variables = HashMap::new();
 
@@ -27,6 +31,7 @@ fn main() {
         .for_each(|e| interpret_statement(e, args.benchmark, &mut variables));
 
     if args.interactive {
+        println!("Calcy (v{}), have fun!", env!("CARGO_PKG_VERSION"));
         repl(&mut variables, args.benchmark);
     }
 }
@@ -51,10 +56,13 @@ fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashM
 
 fn retrieve_variable(input: &str, variables: &mut HashMap<String, f64>) {
     let (name, value) = input.split_once('=').unwrap();
-    variables.insert(name.into(), calcy::solve_vars(value.into(), variables).unwrap());
+    variables.insert(
+        name.into(),
+        calcy::solve_vars(value.into(), variables).unwrap(),
+    );
 }
 
-fn eval(equation: String, benchmark: bool, variables: &HashMap<String, f64>) {
+fn eval(equation: String, benchmark: bool, variables: &mut HashMap<String, f64>) {
     let start = Instant::now();
     let result = calcy::solve_vars(equation, variables);
     let duration = start.elapsed();
@@ -65,6 +73,7 @@ fn eval(equation: String, benchmark: bool, variables: &HashMap<String, f64>) {
             } else {
                 println!("{r}");
             }
+            variables.insert("ans".into(), r);
         }
         Err(e) => eprintln!("error: {e}"),
     }
