@@ -3,6 +3,7 @@ use calcy::solve;
 use clap::Parser;
 use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
+use std::process;
 use std::time::Instant;
 
 mod cli;
@@ -12,13 +13,38 @@ fn main() {
 
     env_logger::init();
 
+    let mut variables = HashMap::new();
+    args.equations
+        .into_iter()
+        .for_each(|e| interpret_statement(e, args.benchmark, &mut variables));
+
     if args.interactive {
-        repl(args.equations, args.benchmark);
-    } else {
-        args.equations
-            .into_iter()
-            .for_each(|e| eval(e, args.benchmark, &HashMap::new()));
+        repl(&mut variables, args.benchmark);
     }
+}
+
+fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashMap<String, f64>) {
+
+    if statement.to_lowercase() == "exit" {
+        process::exit(0);
+    }
+
+    if statement.to_lowercase() == "vars" {
+        println!("{:?}", variables);
+        return;
+    }
+
+    if statement.contains('=') {
+        retrieve_variable(&statement, variables);
+        return;
+    }
+
+    eval(statement, benchmark, variables);
+}
+
+fn retrieve_variable(input: &str, variables: &mut HashMap<String, f64>) {
+    let (name, value) = input.split_once('=').unwrap();
+    variables.insert(name.into(), solve(value.into()).unwrap());
 }
 
 fn eval(equation: String, benchmark: bool, variables: &HashMap<String, f64>) {
@@ -37,61 +63,17 @@ fn eval(equation: String, benchmark: bool, variables: &HashMap<String, f64>) {
     }
 }
 
-fn repl(equations: Vec<String>, benchmark: bool) {
-    let mut variables = HashMap::new();
 
-    equations.into_iter().for_each(|e| {
-        let input = move || {
-            println!("{e}");
-            e.clone()
-        };
-        repl_eval(benchmark, &mut variables, &input);
-    });
-
-    let line = || {
-        let mut input = String::new();
-        stdin().read_line(&mut input).unwrap();
-        input.replace('\n', "")
-    };
-
+fn repl(variables: &mut HashMap<String, f64>, benchmark: bool) {
     loop {
-        let next = repl_eval(benchmark, &mut variables, &line);
-        if !next {
-            return;
-        }
+        print!("?: ");
+        stdout().flush().unwrap();
+        interpret_statement(read_line(),benchmark, variables);
     }
 }
 
-fn repl_eval(
-    benchmark: bool,
-    variables: &mut HashMap<String, f64>,
-    input_fn: &dyn Fn() -> String,
-) -> bool {
-    print!("?: ");
-    stdout().flush().unwrap();
-
-    let input = input_fn();
-
-    if input.to_lowercase() == "exit" {
-        return false;
-    }
-
-    if input.to_lowercase() == "vars" {
-        println!("{:?}", variables);
-        return true;
-    }
-
-    if input.contains('=') {
-        retrieve_variable(&input, variables);
-        return true;
-    }
-
-    eval(input, benchmark, variables);
-
-    true
-}
-
-fn retrieve_variable(input: &str, variables: &mut HashMap<String, f64>) {
-    let (name, value) = input.split_once('=').unwrap();
-    variables.insert(name.into(), solve(value.into()).unwrap());
+fn read_line() -> String {
+    let mut input = String::new();
+    stdin().read_line(&mut input).unwrap();
+    input.replace('\n', "")
 }
