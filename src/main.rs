@@ -1,48 +1,46 @@
-use std::collections::HashMap;
 use crate::cli::Args;
+use calcy::solve;
 use clap::Parser;
+use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
 use std::time::Instant;
-use calcy::solve;
 
 mod cli;
 
 fn main() {
     let args = Args::parse();
 
+    env_logger::init();
+
     if args.interactive {
         repl(args.equations, args.benchmark);
-    } else if args.benchmark {
-        args.equations.into_iter().for_each(benchmark_eval);
     } else {
-        args.equations.into_iter().for_each(eval);
+        args.equations
+            .into_iter()
+            .for_each(|e| eval(e, args.benchmark, &HashMap::new()));
     }
 }
 
-fn eval(equation: String) {
-    let result = calcy::solve(equation);
-    match result {
-        Ok(r) => println!("{r}"),
-        Err(e) => eprintln!("Error: {e}"),
-    }
-}
-
-fn benchmark_eval(equation: String) {
+fn eval(equation: String, benchmark: bool, variables: &HashMap<String, f64>) {
     let start = Instant::now();
-    let result = calcy::solve(equation);
+    let result = calcy::solve_vars(equation, variables);
     let duration = start.elapsed();
-
     match result {
-        Ok(r) => println!("{r} (took {}μs)", duration.as_micros()),
-        Err(e) => eprintln!("Error: {e}"),
+        Ok(r) => {
+            if benchmark {
+                println!("{r} (took {}μs)", duration.as_micros());
+            } else {
+                println!("{r}");
+            }
+        }
+        Err(e) => eprintln!("error: {e}"),
     }
 }
 
 fn repl(equations: Vec<String>, benchmark: bool) {
-
     let mut variables = HashMap::new();
 
-    equations.into_iter().for_each( |e| {
+    equations.into_iter().for_each(|e| {
         let input = move || {
             println!("{e}");
             e.clone()
@@ -64,11 +62,15 @@ fn repl(equations: Vec<String>, benchmark: bool) {
     }
 }
 
-fn repl_eval(benchmark: bool, variables: &mut HashMap<String,f64>, input_fn: &dyn Fn() -> String) -> bool {
+fn repl_eval(
+    benchmark: bool,
+    variables: &mut HashMap<String, f64>,
+    input_fn: &dyn Fn() -> String,
+) -> bool {
     print!("?: ");
     stdout().flush().unwrap();
 
-    let mut input = input_fn();
+    let input = input_fn();
 
     if input.to_lowercase() == "exit" {
         return false;
@@ -84,15 +86,7 @@ fn repl_eval(benchmark: bool, variables: &mut HashMap<String,f64>, input_fn: &dy
         return true;
     }
 
-    for (key, value) in variables {
-        input = input.replace(key, &value.to_string());
-    }
-
-    if benchmark {
-        benchmark_eval(input);
-    } else {
-        eval(input);
-    }
+    eval(input, benchmark, variables);
 
     true
 }

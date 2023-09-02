@@ -1,7 +1,8 @@
-use crate::parse::ParseError;
-use crate::solve;
+use crate::parse::Expr::{Mul, Variable};
+use crate::parse::{parse_string, ParseError};
+use crate::{solve, CalcyError};
 
-fn assert_nearly_eq(result: Result<f64, ParseError>, expected: f64) {
+fn assert_nearly_eq(result: Result<f64, CalcyError>, expected: f64) {
     assert!((result.unwrap() - expected).abs() < 0.000000001);
 }
 
@@ -62,6 +63,52 @@ fn basic_division() {
 }
 
 #[test]
+fn simple_variable_parsing() {
+    assert_eq!(
+        parse_string::<f64>("ab".into()),
+        Ok(Mul(
+            Box::new(Variable("a".into())),
+            Box::new(Variable("b".into()))
+        ))
+    );
+    assert_eq!(
+        parse_string::<f64>("\"a\"\"b\"".into()),
+        Ok(Mul(
+            Box::new(Variable("a".into())),
+            Box::new(Variable("b".into()))
+        ))
+    );
+    assert_eq!(
+        parse_string::<f64>("\"a\"b".into()),
+        Ok(Mul(
+            Box::new(Variable("a".into())),
+            Box::new(Variable("b".into()))
+        ))
+    );
+    assert_eq!(
+        parse_string::<f64>("a\"b\"".into()),
+        Ok(Mul(
+            Box::new(Variable("a".into())),
+            Box::new(Variable("b".into()))
+        ))
+    );
+    assert_eq!(
+        parse_string::<f64>("\"ab\"\"cd\"".into()),
+        Ok(Mul(
+            Box::new(Variable("ab".into())),
+            Box::new(Variable("cd".into()))
+        ))
+    );
+    assert_eq!(
+        parse_string::<f64>("\"abcdefg\"h".into()),
+        Ok(Mul(
+            Box::new(Variable("abcdefg".into())),
+            Box::new(Variable("h".into()))
+        ))
+    );
+}
+
+#[test]
 fn should_be_err() {
     assert!(solve("6 /".into()).is_err());
     assert!(solve("27*".into()).is_err());
@@ -71,7 +118,6 @@ fn should_be_err() {
     assert!(solve("50--2".into()).is_err());
     assert!(solve("8++ß".into()).is_err());
     assert!(solve("afk#sdmf".into()).is_err());
-    assert!(solve("aajfbah".into()).is_err());
     assert!(solve("".into()).is_err());
 }
 

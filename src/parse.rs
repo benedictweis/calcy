@@ -2,23 +2,29 @@ use std::any::type_name;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
-use crate::parse::Expr::{Add, Div, Mul, Pow, Sub, Value};
+use crate::parse::Expr::{Add, Div, Mul, Pow, Sub, Value, Variable};
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
-    ValueError(String),
-    Unknown(String),
+    ValueError(String, String),
+    EmptyError,
 }
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        match self {
+            ParseError::ValueError(input, type_name) => {
+                write!(f, "could not parse {input} to {type_name}")
+            }
+            ParseError::EmptyError => write!(f, "empty input found while parsing"),
+        }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Expr<T> {
     Value(T),
+    Variable(String),
     Add(Box<Expr<T>>, Box<Expr<T>>),
     Sub(Box<Expr<T>>, Box<Expr<T>>),
     Mul(Box<Expr<T>>, Box<Expr<T>>),
@@ -55,14 +61,15 @@ pub fn parse_simple_string<T: Debug + FromStr>(input: String) -> Result<Expr<T>,
     } else {
         match trim(&input).parse::<T>() {
             Ok(n) => Ok(Value(n)),
-            Err(_) => Err(ParseError::ValueError(
-                format! {"Could not parse \"{input}\" to {}", type_name::<T>()},
-            )),
+            Err(_) => parse_variables::<T>(parse_simple_string, input),
         }
     }
 }
 
 pub fn parse_string<T: Debug + FromStr>(input: String) -> Result<Expr<T>, ParseError> {
+    if input.is_empty() {
+        return Err(ParseError::EmptyError);
+    }
     if let Ok(n) = trim(&input).parse::<T>() {
         Ok(Value(n))
     } else {
@@ -75,10 +82,39 @@ pub fn parse_string<T: Debug + FromStr>(input: String) -> Result<Expr<T>, ParseE
             Some(('*', left, right)) => Ok(Mul(recurse(left)?, recurse(right)?)),
             Some(('/', left, right)) => Ok(Div(recurse(left)?, recurse(right)?)),
             Some(('^', left, right)) => Ok(Pow(recurse(left)?, recurse(right)?)),
-            _ => Err(ParseError::ValueError(
-                format! {"Could not parse '{input}' to {}", type_name::<T>()},
-            )),
+            _ => parse_variables::<T>(parse_string, input),
         }
+    }
+}
+
+pub(crate) fn parse_variables<T: Debug + FromStr>(
+    recurse: fn(String) -> Result<Expr<T>, ParseError>,
+    input: String,
+) -> Result<Expr<T>, ParseError> {
+    if !input.chars().all(|c| c.is_alphabetic() || c == '"') {
+        return Err(ParseError::ValueError(input, type_name::<T>().into()));
+    }
+    let mut vars: Vec<String> = Vec::new();
+    let mut iter = input.chars();
+    while let Some(c) = iter.next() {
+        if c == '\"' {
+            let mut buf = String::new();
+            for e in iter.by_ref() {
+                if e == '\"' {
+                    break;
+                }
+                buf.push(e);
+            }
+            vars.push(buf);
+            continue;
+        }
+        vars.push(c.to_string());
+    }
+    if vars.len() == 1 {
+        Ok(Variable(vars[0].clone()))
+    } else {
+        vars = vars.into_iter().map(|v| format!("\"{v}\"")).collect();
+        Ok(recurse(vars.join("*"))?)
     }
 }
 
