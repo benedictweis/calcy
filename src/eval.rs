@@ -26,9 +26,8 @@ pub fn eval_expr(expr: &Expr<f64>, variables: &HashMap<String, f64>) -> Result<f
         Expr::Sub(a, b) => eval_expr(a.as_ref(), variables)? - eval_expr(b.as_ref(), variables)?,
         Expr::Mul(a, b) => eval_expr(a.as_ref(), variables)? * eval_expr(b.as_ref(), variables)?,
         Expr::Div(a, b) => eval_expr(a.as_ref(), variables)? / eval_expr(b.as_ref(), variables)?,
-        Expr::Pow(a, b) => {
-            eval_expr(a.as_ref(), variables)?.powf(eval_expr(b.as_ref(), variables)?)
-        }
+        Expr::Pow(a, b) => eval_expr(a.as_ref(), variables)?.powf(eval_expr(b.as_ref(), variables)?),
+        _ => panic!("Found unexpected token {expr:?} while evaluating"),
     })
 }
 
@@ -39,18 +38,10 @@ where
     Ok(match expr {
         Expr::Value(v) => *v,
         Expr::Variable(v) => *variables.get(v).ok_or_else(|| VariableNotFound(v.into()))?,
-        Expr::Add(a, b) => {
-            eval_expr_with(a.as_ref(), variables)? + eval_expr_with(b.as_ref(), variables)?
-        }
-        Expr::Sub(a, b) => {
-            eval_expr_with(a.as_ref(), variables)? - eval_expr_with(b.as_ref(), variables)?
-        }
-        Expr::Mul(a, b) => {
-            eval_expr_with(a.as_ref(), variables)? * eval_expr_with(b.as_ref(), variables)?
-        }
-        Expr::Div(a, b) => {
-            eval_expr_with(a.as_ref(), variables)? / eval_expr_with(b.as_ref(), variables)?
-        }
+        Expr::Add(a, b) => eval_expr_with(a.as_ref(), variables)? + eval_expr_with(b.as_ref(), variables)?,
+        Expr::Sub(a, b) => eval_expr_with(a.as_ref(), variables)? - eval_expr_with(b.as_ref(), variables)?,
+        Expr::Mul(a, b) => eval_expr_with(a.as_ref(), variables)? * eval_expr_with(b.as_ref(), variables)?,
+        Expr::Div(a, b) => eval_expr_with(a.as_ref(), variables)? / eval_expr_with(b.as_ref(), variables)?,
         _ => panic!("Not supported by type {}", type_name::<T>()),
     })
 }

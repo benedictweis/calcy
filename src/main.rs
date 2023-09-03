@@ -26,9 +26,7 @@ fn main() {
         lines.for_each(|l| interpret_statement(l.into(), args.benchmark, &mut variables));
     }
 
-    args.equations
-        .into_iter()
-        .for_each(|e| interpret_statement(e, args.benchmark, &mut variables));
+    args.equations.into_iter().for_each(|e| interpret_statement(e, args.benchmark, &mut variables));
 
     if args.interactive {
         println!("Calcy (v{}), have fun!", env!("CARGO_PKG_VERSION"));
@@ -56,10 +54,7 @@ fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashM
 
 fn retrieve_variable(input: &str, variables: &mut HashMap<String, f64>) {
     let (name, value) = input.split_once('=').unwrap();
-    variables.insert(
-        name.into(),
-        calcy::solve_vars(value.into(), variables).unwrap(),
-    );
+    variables.insert(name.into(), calcy::solve_vars(value.into(), variables).unwrap());
 }
 
 fn eval(equation: String, benchmark: bool, variables: &mut HashMap<String, f64>) {
