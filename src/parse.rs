@@ -134,7 +134,9 @@ pub fn parse_string<T: Debug + FromStr + PartialEq + Clone>(input: Vec<Expr<T>>)
     unreachable!();
 }
 
-fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> Option<(Expr<T>, Vec<Expr<T>>, Vec<Expr<T>>)> {
+type OperandRest<T> = (Expr<T>, Vec<Expr<T>>, Vec<Expr<T>>);
+
+fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> Option<OperandRest<T>> {
     let mut level = 100;
     let mut operand = (Nothing, 0, level * 100);
     for (index, expr) in input.iter().enumerate() {
@@ -149,7 +151,7 @@ fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> 
             }
             _ => {}
         }
-        let operand_value = (level * 10) + operand_value(&expr);
+        let operand_value = (level * 10) + operand_value(expr);
         if operand_value <= operand.2 {
             operand = (expr.clone(), index, operand_value);
         }
