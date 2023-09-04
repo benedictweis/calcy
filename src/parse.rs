@@ -2,8 +2,9 @@ use std::any::type_name;
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::{Enumerate, Peekable};
 use std::str::{Chars, FromStr};
+use log::trace;
 
-use crate::parse::Expr::{Add, AddSymbol, ClosingBrackets, Div, DivSymbol, Mul, MulSymbol, Nothing, OpeningBrackets, Pow, PowSymbol, Sub, SubSymbol, Value, Variable};
+use crate::parse::Expr::{Add, AddSymbol, ClosingBrackets, Div, DivSymbol, Mul, MulSymbol, OpeningBrackets, Pow, PowSymbol, Sub, SubSymbol, Value, Variable};
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
@@ -28,7 +29,6 @@ impl Display for ParseError {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr<T> {
-    Nothing,
     Value(T),
     Variable(String),
     OpeningBrackets,
@@ -50,21 +50,31 @@ pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Expr<T>>, Parse
     let mut iter = input.chars().enumerate().peekable();
     while let Some((i, c)) = iter.next() {
         match c {
-            '+' => tokens.push(AddSymbol),
-            '-' => tokens.push(SubSymbol),
-            '*' => tokens.push(MulSymbol),
-            '/' => tokens.push(DivSymbol),
-            '^' => tokens.push(PowSymbol),
-            '(' => tokens.push(OpeningBrackets),
+            '+' | '-' | '*' | '/' | '^' => {
+                if !tokens.is_empty() && !matches!(tokens.last(), Some(Value(_))) && !matches!(tokens.last(), Some(Variable(_))) && !matches!(tokens.last(), Some(ClosingBrackets))  {
+                    return Err(ParseError::UnexpectedTokenError(i, c));
+                }
+                match c {
+                    '+' => tokens.push(AddSymbol),
+                    '-' => tokens.push(SubSymbol),
+                    '*' => tokens.push(MulSymbol),
+                    '/' => tokens.push(DivSymbol),
+                    '^' => tokens.push(PowSymbol),
+                    _ => unreachable!(),
+                }
+            }
+
+            '(' => {
+                if !tokens.is_empty() && (matches!(tokens.last(), Some(Value(_))) || matches!(tokens.last(), Some(Variable(_)))) {
+                    tokens.push(MulSymbol);
+                }
+                tokens.push(OpeningBrackets);
+            },
             ')' => tokens.push(ClosingBrackets),
             '0'..='9' | '.' => tokens.push(parse_num(c, &mut iter)?),
             'a'..='z' | 'A'..='Z' | '"' => {
-                if !tokens.is_empty() {
-                    if let Some(Value(_)) = tokens.last() {
+                if !tokens.is_empty() && (matches!(tokens.last(), Some(Value(_))) || matches!(tokens.last(), Some(Variable(_)))) {
                         tokens.push(MulSymbol);
-                    } else if let Some(Variable(_)) = tokens.last() {
-                        tokens.push(MulSymbol);
-                    }
                 }
                 tokens.push(parse_variable(c, &mut iter)?);
             }
@@ -111,6 +121,7 @@ fn parse_variable<T: Debug + FromStr>(first: char, iter: &mut Peekable<Enumerate
 }
 
 pub fn parse_string<T: Debug + FromStr + PartialEq + Clone>(input: Vec<Expr<T>>) -> Result<Expr<T>, ParseError> {
+    trace!("Parsing {input:?}");
     if input.is_empty() {
         return Err(ParseError::EmptyError);
     } else if input.len() == 1 {
@@ -123,11 +134,11 @@ pub fn parse_string<T: Debug + FromStr + PartialEq + Clone>(input: Vec<Expr<T>>)
         let operand = split_at_major_operand(input);
         let recurse = |d: Vec<Expr<T>>| -> Result<Box<Expr<T>>, ParseError> { Ok(Box::new(parse_string::<T>(d)?)) };
         return match operand {
-            Some((AddSymbol, left, right)) => Ok(Add(recurse(left)?, recurse(right)?)),
-            Some((SubSymbol, left, right)) => Ok(Sub(recurse(left)?, recurse(right)?)),
-            Some((MulSymbol, left, right)) => Ok(Mul(recurse(left)?, recurse(right)?)),
-            Some((DivSymbol, left, right)) => Ok(Div(recurse(left)?, recurse(right)?)),
-            Some((PowSymbol, left, right)) => Ok(Pow(recurse(left)?, recurse(right)?)),
+            (AddSymbol, left, right) => Ok(Add(recurse(left)?, recurse(right)?)),
+            (SubSymbol, left, right) => Ok(Sub(recurse(left)?, recurse(right)?)),
+            (MulSymbol, left, right) => Ok(Mul(recurse(left)?, recurse(right)?)),
+            (DivSymbol, left, right) => Ok(Div(recurse(left)?, recurse(right)?)),
+            (PowSymbol, left, right) => Ok(Pow(recurse(left)?, recurse(right)?)),
             _ => unreachable!(),
         };
     }
@@ -136,41 +147,47 @@ pub fn parse_string<T: Debug + FromStr + PartialEq + Clone>(input: Vec<Expr<T>>)
 
 type OperandRest<T> = (Expr<T>, Vec<Expr<T>>, Vec<Expr<T>>);
 
-fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> Option<OperandRest<T>> {
-    let mut level = 100;
-    let mut operand = (Nothing, 0, level * 100);
+#[derive(Debug)]
+struct Operand<T> {
+    expr: Expr<T>,
+    index: usize,
+    value: usize,
+    level: usize,
+}
+
+fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> OperandRest<T> {
+    let mut level = 0;
+    let mut operand = Operand { expr: Variable("no operands".into()), index: 0, value: 0, level: 1000 };
     for (index, expr) in input.iter().enumerate() {
         match expr {
             OpeningBrackets => {
                 level += 1;
-                continue;
             }
             ClosingBrackets => {
                 level -= 1;
-                continue;
             }
-            _ => {}
-        }
-        let operand_value = (level * 10) + operand_value(expr);
-        if operand_value <= operand.2 {
-            operand = (expr.clone(), index, operand_value);
+            _ => {
+                let value = operand_value(expr);
+                if level < operand.level || (level == operand.level && value >= operand.value) {
+                    operand = Operand { expr: expr.clone(), index, value, level };
+                }
+            }
         }
     }
-    if operand.0 == Nothing {
-        None
-    } else {
-        let (left, right) = input.split_at(operand.1);
-        Some((operand.0, left.to_vec(), right[1..].to_vec()))
-    }
+    let (left, right) = input.split_at(operand.index);
+    let left = left[operand.level..].to_vec();
+    let right = right[1..right.len()-operand.level].to_vec();
+    trace!("Split at {operand:?} with left {left:?} and right {right:?}");
+    (operand.expr, left, right)
 }
 
 fn operand_value<T: Debug>(o: &Expr<T>) -> usize {
     match o {
-        AddSymbol => 5,
-        SubSymbol => 6,
-        MulSymbol => 7,
-        DivSymbol => 8,
-        PowSymbol => 10,
-        _ => 100,
+        AddSymbol => 10,
+        SubSymbol => 9,
+        MulSymbol => 8,
+        DivSymbol => 7,
+        PowSymbol => 6,
+        _ => 0,
     }
 }
