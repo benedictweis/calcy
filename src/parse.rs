@@ -1,8 +1,8 @@
+use log::trace;
 use std::any::type_name;
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::{Enumerate, Peekable};
 use std::str::{Chars, FromStr};
-use log::trace;
 
 use crate::parse::Expr::{Add, AddSymbol, ClosingBrackets, Div, DivSymbol, Mul, MulSymbol, OpeningBrackets, Pow, PowSymbol, Sub, SubSymbol, Value, Variable};
 
@@ -51,7 +51,7 @@ pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Expr<T>>, Parse
     while let Some((i, c)) = iter.next() {
         match c {
             '+' | '-' | '*' | '/' | '^' => {
-                if !tokens.is_empty() && !matches!(tokens.last(), Some(Value(_))) && !matches!(tokens.last(), Some(Variable(_))) && !matches!(tokens.last(), Some(ClosingBrackets))  {
+                if !tokens.is_empty() && !matches!(tokens.last(), Some(Value(_))) && !matches!(tokens.last(), Some(Variable(_))) && !matches!(tokens.last(), Some(ClosingBrackets)) {
                     return Err(ParseError::UnexpectedTokenError(i, c));
                 }
                 match c {
@@ -69,12 +69,12 @@ pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Expr<T>>, Parse
                     tokens.push(MulSymbol);
                 }
                 tokens.push(OpeningBrackets);
-            },
+            }
             ')' => tokens.push(ClosingBrackets),
             '0'..='9' | '.' => tokens.push(parse_num(c, &mut iter)?),
             'a'..='z' | 'A'..='Z' | '"' => {
                 if !tokens.is_empty() && (matches!(tokens.last(), Some(Value(_))) || matches!(tokens.last(), Some(Variable(_)))) {
-                        tokens.push(MulSymbol);
+                    tokens.push(MulSymbol);
                 }
                 tokens.push(parse_variable(c, &mut iter)?);
             }
@@ -157,7 +157,12 @@ struct Operand<T> {
 
 fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> OperandRest<T> {
     let mut level = 0;
-    let mut operand = Operand { expr: Variable("no operands".into()), index: 0, value: 0, level: 1000 };
+    let mut operand = Operand {
+        expr: Variable("no operands".into()),
+        index: 0,
+        value: 0,
+        level: 1000,
+    };
     for (index, expr) in input.iter().enumerate() {
         match expr {
             OpeningBrackets => {
@@ -169,14 +174,19 @@ fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> 
             _ => {
                 let value = operand_value(expr);
                 if level < operand.level || (level == operand.level && value >= operand.value) {
-                    operand = Operand { expr: expr.clone(), index, value, level };
+                    operand = Operand {
+                        expr: expr.clone(),
+                        index,
+                        value,
+                        level,
+                    };
                 }
             }
         }
     }
     let (left, right) = input.split_at(operand.index);
     let left = left[operand.level..].to_vec();
-    let right = right[1..right.len()-operand.level].to_vec();
+    let right = right[1..right.len() - operand.level].to_vec();
     trace!("Split at {operand:?} with left {left:?} and right {right:?}");
     (operand.expr, left, right)
 }

@@ -1,8 +1,10 @@
 use crate::cli::Args;
 use clap::Parser;
-use log::debug;
+use console::style;
+use log::{debug, warn};
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 use std::collections::HashMap;
-use std::io::{stdin, stdout, Write};
 use std::time::Instant;
 use std::{fs, process};
 
@@ -18,25 +20,29 @@ fn main() {
     }
 
     let mut variables = HashMap::new();
+    let mut exit_code = 0;
 
     if let Some(file_path) = args.file {
         debug!("Attempting to read from file {}", file_path.display());
         let contents = fs::read_to_string(file_path).expect("could not read from file");
         let lines = contents.lines();
-        lines.for_each(|l| interpret_statement(l.into(), args.benchmark, &mut variables));
+        lines.for_each(|l| interpret_statement(l.into(), args.benchmark, &mut variables, &mut exit_code));
     }
 
-    args.equations.into_iter().for_each(|e| interpret_statement(e, args.benchmark, &mut variables));
+    args.equations.into_iter().for_each(|e| interpret_statement(e, args.benchmark, &mut variables, &mut exit_code));
 
     if args.interactive {
         println!("Calcy (v{}), have fun!", env!("CARGO_PKG_VERSION"));
         repl(&mut variables, args.benchmark);
+        exit_code = 0;
     }
+    process::exit(exit_code);
 }
 
-fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashMap<String, f64>) {
+fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashMap<String, f64>, exit_code: &mut i32) {
     if statement.to_lowercase() == "exit" {
-        process::exit(0);
+        println!("Exiting...");
+        process::exit(*exit_code);
     }
 
     if statement.to_lowercase() == "vars" {
@@ -49,7 +55,7 @@ fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashM
         return;
     }
 
-    eval(statement, benchmark, variables);
+    eval(statement, benchmark, variables, exit_code);
 }
 
 fn retrieve_variable(input: &str, variables: &mut HashMap<String, f64>) {
@@ -57,7 +63,7 @@ fn retrieve_variable(input: &str, variables: &mut HashMap<String, f64>) {
     variables.insert(name.into(), calcy::solve_vars(value.into(), variables).unwrap());
 }
 
-fn eval(equation: String, benchmark: bool, variables: &mut HashMap<String, f64>) {
+fn eval(equation: String, benchmark: bool, variables: &mut HashMap<String, f64>, exit_code: &mut i32) {
     let start = Instant::now();
     let result = calcy::solve_vars(equation, variables);
     let duration = start.elapsed();
@@ -70,20 +76,36 @@ fn eval(equation: String, benchmark: bool, variables: &mut HashMap<String, f64>)
             }
             variables.insert("ans".into(), r);
         }
-        Err(e) => eprintln!("error: {e}"),
+        Err(e) => {
+            eprintln!("{}", style(format!("error: {e}")).red());
+            *exit_code = 1;
+        }
     }
 }
 
 fn repl(variables: &mut HashMap<String, f64>, benchmark: bool) {
-    loop {
-        print!("?: ");
-        stdout().flush().unwrap();
-        interpret_statement(read_line(), benchmark, variables);
+    let mut rl = DefaultEditor::new().expect("cannot start repl");
+    let history_path = std::env::temp_dir().join("calcy-history.txt");
+    debug!("Using {history_path:?} as history file");
+    if rl.load_history(&history_path).is_err() {
+        warn!("No previous history could be found at {history_path:?}")
     }
-}
-
-fn read_line() -> String {
-    let mut input = String::new();
-    stdin().read_line(&mut input).unwrap();
-    input.replace('\n', "")
+    loop {
+        let readline = rl.readline("?: ");
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(line.as_str()).expect("could not add history entry");
+                rl.save_history(&history_path).expect("could not save history");
+                interpret_statement(line, benchmark, variables, &mut 0);
+            }
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
+                println!("Exiting...");
+                break;
+            }
+            Err(err) => {
+                eprintln!("{}", style(format!("error: {err:?}")).red());
+                break;
+            }
+        }
+    }
 }
