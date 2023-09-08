@@ -4,7 +4,8 @@ use std::fmt::{Debug, Display, Formatter};
 use std::iter::{Enumerate, Peekable};
 use std::str::{Chars, FromStr};
 
-use crate::parse::Expr::{Add, AddSymbol, ClosingBrackets, Div, DivSymbol, Mul, MulSymbol, OpeningBrackets, Pow, PowSymbol, Sub, SubSymbol, Value, Variable};
+use crate::parse::Expr::{Add, Div, Mul, Pow, Sub};
+use crate::parse::Token::{AddSymbol, ClosingBrackets, DivSymbol, MulSymbol, OpeningBrackets, PowSymbol, SubSymbol};
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
@@ -28,52 +29,58 @@ impl Display for ParseError {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expr<T> {
+pub enum Token<T> {
     Value(T),
     Variable(String),
     OpeningBrackets,
     ClosingBrackets,
     AddSymbol,
-    Add(Box<Expr<T>>, Box<Expr<T>>),
     SubSymbol,
-    Sub(Box<Expr<T>>, Box<Expr<T>>),
     MulSymbol,
-    Mul(Box<Expr<T>>, Box<Expr<T>>),
     DivSymbol,
-    Div(Box<Expr<T>>, Box<Expr<T>>),
     PowSymbol,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Expr<T> {
+    Value(T),
+    Variable(String),
+    Add(Box<Expr<T>>, Box<Expr<T>>),
+    Sub(Box<Expr<T>>, Box<Expr<T>>),
+    Mul(Box<Expr<T>>, Box<Expr<T>>),
+    Div(Box<Expr<T>>, Box<Expr<T>>),
     Pow(Box<Expr<T>>, Box<Expr<T>>),
 }
 
-pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Expr<T>>, ParseError> {
+pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Token<T>>, ParseError> {
     let mut tokens = Vec::new();
     let mut iter = input.chars().enumerate().peekable();
     while let Some((i, c)) = iter.next() {
         match c {
             '+' | '-' | '*' | '/' | '^' => {
-                if !tokens.is_empty() && !matches!(tokens.last(), Some(Value(_))) && !matches!(tokens.last(), Some(Variable(_))) && !matches!(tokens.last(), Some(ClosingBrackets)) {
+                if !tokens.is_empty() && !matches!(tokens.last(), Some(Token::Value(_))) && !matches!(tokens.last(), Some(Token::Variable(_))) && !matches!(tokens.last(), Some(Token::ClosingBrackets))
+                {
                     return Err(ParseError::UnexpectedTokenError(i, c));
                 }
                 match c {
-                    '+' => tokens.push(AddSymbol),
-                    '-' => tokens.push(SubSymbol),
-                    '*' => tokens.push(MulSymbol),
-                    '/' => tokens.push(DivSymbol),
-                    '^' => tokens.push(PowSymbol),
+                    '+' => tokens.push(Token::AddSymbol),
+                    '-' => tokens.push(Token::SubSymbol),
+                    '*' => tokens.push(Token::MulSymbol),
+                    '/' => tokens.push(Token::DivSymbol),
+                    '^' => tokens.push(Token::PowSymbol),
                     _ => unreachable!(),
                 }
             }
-
             '(' => {
-                if !tokens.is_empty() && (matches!(tokens.last(), Some(Value(_))) || matches!(tokens.last(), Some(Variable(_)))) {
-                    tokens.push(MulSymbol);
+                if !tokens.is_empty() && (matches!(tokens.last(), Some(Token::Value(_))) || matches!(tokens.last(), Some(Token::Variable(_)))) {
+                    tokens.push(Token::MulSymbol);
                 }
-                tokens.push(OpeningBrackets);
+                tokens.push(Token::OpeningBrackets);
             }
-            ')' => tokens.push(ClosingBrackets),
+            ')' => tokens.push(Token::ClosingBrackets),
             '0'..='9' | '.' => tokens.push(parse_num(c, &mut iter)?),
             'a'..='z' | 'A'..='Z' | '"' => {
-                if !tokens.is_empty() && (matches!(tokens.last(), Some(Value(_))) || matches!(tokens.last(), Some(Variable(_)))) {
+                if !tokens.is_empty() && (matches!(tokens.last(), Some(Token::Value(_))) || matches!(tokens.last(), Some(Token::Variable(_)))) {
                     tokens.push(MulSymbol);
                 }
                 tokens.push(parse_variable(c, &mut iter)?);
@@ -85,7 +92,7 @@ pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Expr<T>>, Parse
     Ok(tokens)
 }
 
-fn parse_num<T: Debug + FromStr>(first: char, iter: &mut Peekable<Enumerate<Chars>>) -> Result<Expr<T>, ParseError> {
+fn parse_num<T: Debug + FromStr>(first: char, iter: &mut Peekable<Enumerate<Chars>>) -> Result<Token<T>, ParseError> {
     let mut num_str = String::from(first);
     while let Some((_, c)) = iter.peek() {
         match c {
@@ -94,14 +101,14 @@ fn parse_num<T: Debug + FromStr>(first: char, iter: &mut Peekable<Enumerate<Char
         }
     }
     match T::from_str(&num_str) {
-        Ok(v) => Ok(Value(v)),
+        Ok(v) => Ok(Token::Value(v)),
         Err(_) => Err(ParseError::ValueError(num_str, type_name::<T>().into())),
     }
 }
 
-fn parse_variable<T: Debug + FromStr>(first: char, iter: &mut Peekable<Enumerate<Chars>>) -> Result<Expr<T>, ParseError> {
+fn parse_variable<T: Debug + FromStr>(first: char, iter: &mut Peekable<Enumerate<Chars>>) -> Result<Token<T>, ParseError> {
     match first {
-        'a'..='z' | 'A'..='Z' => Ok(Variable(first.into())),
+        'a'..='z' | 'A'..='Z' => Ok(Token::Variable(first.into())),
         '"' => {
             let mut var = String::new();
             while let Some((i, c)) = iter.peek() {
@@ -114,25 +121,25 @@ fn parse_variable<T: Debug + FromStr>(first: char, iter: &mut Peekable<Enumerate
                     _ => return Err(ParseError::UnexpectedTokenError(*i, first)),
                 }
             }
-            Ok(Variable(var))
+            Ok(Token::Variable(var))
         }
         _ => Err(ParseError::UnexpectedTokenError(iter.peek().unwrap().0 - 1, first)),
     }
 }
 
-pub fn parse_string<T: Debug + FromStr + PartialEq + Clone>(input: Vec<Expr<T>>) -> Result<Expr<T>, ParseError> {
+pub fn parse_string<T: Debug + FromStr + PartialEq + Clone>(input: Vec<Token<T>>) -> Result<Expr<T>, ParseError> {
     trace!("Parsing {input:?}");
     if input.is_empty() {
         return Err(ParseError::EmptyError);
     } else if input.len() == 1 {
-        if let Some(Value(_)) = input.get(0) {
-            return Ok(input[0].clone());
-        } else if let Some(Variable(_)) = input.get(0) {
-            return Ok(input[0].clone());
+        if let Some(Token::Value(v)) = input.get(0) {
+            return Ok(Expr::Value(v.clone()));
+        } else if let Some(Token::Variable(v)) = input.get(0) {
+            return Ok(Expr::Variable(v.clone()));
         }
     } else {
         let operand = split_at_major_operand(input);
-        let recurse = |d: Vec<Expr<T>>| -> Result<Box<Expr<T>>, ParseError> { Ok(Box::new(parse_string::<T>(d)?)) };
+        let recurse = |d: Vec<Token<T>>| -> Result<Box<Expr<T>>, ParseError> { Ok(Box::new(parse_string::<T>(d)?)) };
         return match operand {
             (AddSymbol, left, right) => Ok(Add(recurse(left)?, recurse(right)?)),
             (SubSymbol, left, right) => Ok(Sub(recurse(left)?, recurse(right)?)),
@@ -145,26 +152,26 @@ pub fn parse_string<T: Debug + FromStr + PartialEq + Clone>(input: Vec<Expr<T>>)
     unreachable!();
 }
 
-type OperandRest<T> = (Expr<T>, Vec<Expr<T>>, Vec<Expr<T>>);
+type OperandRest<T> = (Token<T>, Vec<Token<T>>, Vec<Token<T>>);
 
 #[derive(Debug)]
 struct Operand<T> {
-    expr: Expr<T>,
+    token: Token<T>,
     index: usize,
     value: usize,
     level: usize,
 }
 
-fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> OperandRest<T> {
+fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Token<T>>) -> OperandRest<T> {
     let mut level = 0;
     let mut operand = Operand {
-        expr: Variable("no operands".into()),
+        token: Token::Variable("no operands".into()),
         index: 0,
         value: 0,
         level: 1000,
     };
-    for (index, expr) in input.iter().enumerate() {
-        match expr {
+    for (index, token) in input.iter().enumerate() {
+        match token {
             OpeningBrackets => {
                 level += 1;
             }
@@ -172,10 +179,10 @@ fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> 
                 level -= 1;
             }
             _ => {
-                let value = operand_value(expr);
+                let value = operand_value(token);
                 if level < operand.level || (level == operand.level && value >= operand.value) {
                     operand = Operand {
-                        expr: expr.clone(),
+                        token: token.clone(),
                         index,
                         value,
                         level,
@@ -188,10 +195,10 @@ fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Expr<T>>) -> 
     let left = left[operand.level..].to_vec();
     let right = right[1..right.len() - operand.level].to_vec();
     trace!("Split at {operand:?} with left {left:?} and right {right:?}");
-    (operand.expr, left, right)
+    (operand.token, left, right)
 }
 
-fn operand_value<T: Debug>(o: &Expr<T>) -> usize {
+fn operand_value<T: Debug>(o: &Token<T>) -> usize {
     match o {
         AddSymbol => 10,
         SubSymbol => 9,

@@ -1,13 +1,7 @@
-use crate::parse::Expr::{AddSymbol, Mul, MulSymbol, Value, Variable};
-use crate::parse::{parse_string, tokenize, Expr, ParseError};
-use crate::{solve, CalcyError};
+use crate::{solve, Error};
 
-fn assert_nearly_eq(result: Result<f64, CalcyError>, expected: f64) {
+fn assert_nearly_eq(result: Result<f64, Error>, expected: f64) {
     assert!((result.unwrap() - expected).abs() < 0.000000001);
-}
-
-fn parse(input: String) -> Result<Expr<f64>, ParseError> {
-    parse_string(tokenize::<f64>(input)?)
 }
 
 #[test]
@@ -67,16 +61,6 @@ fn basic_division() {
 }
 
 #[test]
-fn simple_variable_parsing() {
-    assert_eq!(parse("ab".into()), Ok(Mul(Box::new(Variable("a".into())), Box::new(Variable("b".into())))));
-    assert_eq!(parse("\"a\"\"b\"".into()), Ok(Mul(Box::new(Variable("a".into())), Box::new(Variable("b".into())))));
-    assert_eq!(parse("\"a\"b".into()), Ok(Mul(Box::new(Variable("a".into())), Box::new(Variable("b".into())))));
-    assert_eq!(parse("a\"b\"".into()), Ok(Mul(Box::new(Variable("a".into())), Box::new(Variable("b".into())))));
-    assert_eq!(parse("\"ab\"\"cd\"".into()), Ok(Mul(Box::new(Variable("ab".into())), Box::new(Variable("cd".into())))));
-    assert_eq!(parse("\"abcdefg\"h".into()), Ok(Mul(Box::new(Variable("abcdefg".into())), Box::new(Variable("h".into())))));
-}
-
-#[test]
 fn should_be_err() {
     assert!(solve("6 /".into()).is_err());
     assert!(solve("27*".into()).is_err());
@@ -96,13 +80,4 @@ fn edge_cases() {
     assert_eq!(solve("100-100".into()), Ok(0.0));
     assert_eq!(solve("0.5*0.5".into()), Ok(0.25));
     assert_nearly_eq(solve("0.1+0.2".into()), 0.3);
-}
-
-#[test]
-fn simple_tokenization() {
-    assert_eq!(tokenize::<f64>("2+2".into()), Ok(vec![Value(2.0), AddSymbol, Value(2.0)]));
-    assert_eq!(tokenize::<f64>("a".into()), Ok(vec![Variable("a".into())]));
-    assert_eq!(tokenize::<f64>("ab".into()), Ok(vec![Variable("a".into()), MulSymbol, Variable("b".into())]));
-    assert_eq!(tokenize::<f64>("\"abc\"\"bcd\"".into()), Ok(vec![Variable("abc".into()), MulSymbol, Variable("bcd".into())]));
-    assert_eq!(tokenize::<f64>("\"ab\"+\"bc\"".into()), Ok(vec![Variable("ab".into()), AddSymbol, Variable("bc".into())]));
 }

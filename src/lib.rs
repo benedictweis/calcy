@@ -1,71 +1,69 @@
-use crate::eval::{eval_expr, eval_expr_with, EvalError};
+use crate::eval::{eval_expr, EvalError};
 use crate::parse::{parse_string, tokenize, ParseError};
 use log::{debug, info};
+use num::traits::Pow;
 use std::any::type_name;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Add, Div, Mul, Sub};
 use std::str::FromStr;
 
+pub mod decimal;
 pub mod eval;
 pub mod parse;
 #[cfg(test)]
 mod tests;
 
 #[derive(Debug, PartialEq)]
-pub enum CalcyError {
+pub enum Error {
     ParseError(ParseError),
     EvalError(EvalError),
 }
 
-impl Display for CalcyError {
+impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            CalcyError::ParseError(p) => write!(f, "{p}"),
-            CalcyError::EvalError(e) => write!(f, "{e}"),
+            Error::ParseError(p) => write!(f, "{p}"),
+            Error::EvalError(e) => write!(f, "{e}"),
         }
     }
 }
 
-impl From<ParseError> for CalcyError {
+impl From<ParseError> for Error {
     fn from(value: ParseError) -> Self {
-        CalcyError::ParseError(value)
+        Error::ParseError(value)
     }
 }
 
-impl From<EvalError> for CalcyError {
+impl From<EvalError> for Error {
     fn from(value: EvalError) -> Self {
-        CalcyError::EvalError(value)
+        Error::EvalError(value)
     }
 }
 
-pub fn solve(input: String) -> Result<f64, CalcyError> {
-    solve_vars(input, &HashMap::new())
+pub fn solve(input: String) -> Result<f64, Error> {
+    solve_with::<f64>(input)
 }
 
-pub fn solve_vars(input: String, variables: &HashMap<String, f64>) -> Result<f64, CalcyError> {
-    info!("Solving equation {input} with variables {variables:?}");
-    let tokenized_input = tokenize(input)?;
-    debug!("Tokenized input: {tokenized_input:?}");
-    let parsed_input = parse_string(tokenized_input)?;
-    debug!("Parsed input: {parsed_input:?}");
-    Ok(eval_expr(&parsed_input, variables)?)
+pub fn solve_vars(input: String, variables: &HashMap<String, f64>) -> Result<f64, Error> {
+    solve_vars_with::<f64>(input, variables)
 }
 
-pub fn solve_with<T: PartialEq>(input: String) -> Result<T, CalcyError>
+pub fn solve_with<T: PartialEq>(input: String) -> Result<T, Error>
 where
-    T: Debug + FromStr + Copy + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>,
+    T: Pow<T, Output = T> + Debug + FromStr + Copy + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>,
 {
     solve_vars_with(input, &HashMap::new())
 }
 
-pub fn solve_vars_with<T: PartialEq>(input: String, variables: &HashMap<String, T>) -> Result<T, CalcyError>
+pub fn solve_vars_with<T: PartialEq>(input: String, variables: &HashMap<String, T>) -> Result<T, Error>
 where
-    T: Debug + FromStr + Copy + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>,
+    T: Pow<T, Output = T> + Debug + FromStr + Copy + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>,
 {
     info!("Solving equation {input} with type {} and variables {variables:?}", type_name::<T>());
     let tokenized_input = tokenize(input)?;
     debug!("Tokenized input: {tokenized_input:?}");
     let parsed_input = parse_string(tokenized_input)?;
-    Ok(eval_expr_with::<T>(&parsed_input, variables)?)
+    debug!("Parsed input: {parsed_input:?}");
+    Ok(eval_expr::<T>(&parsed_input, variables)?)
 }

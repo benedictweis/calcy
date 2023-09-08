@@ -19,4 +19,8 @@ pub struct Args {
     /// Evaluation times of each equation
     #[arg(short, long, default_value_t = false)]
     pub benchmark: bool,
+
+    /// Evaluate expressions with an exact datatype
+    #[arg(short, long, default_value_t = false)]
+    pub exact: bool,
 }

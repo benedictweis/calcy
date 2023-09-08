@@ -1,8 +1,8 @@
 use crate::eval::EvalError::VariableNotFound;
 use crate::parse::Expr;
-use std::any::type_name;
+use num::traits::Pow;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Debug, PartialEq)]
@@ -18,7 +18,10 @@ impl Display for EvalError {
     }
 }
 
-pub fn eval_expr(expr: &Expr<f64>, variables: &HashMap<String, f64>) -> Result<f64, EvalError> {
+pub fn eval_expr<T>(expr: &Expr<T>, variables: &HashMap<String, T>) -> Result<T, EvalError>
+where
+    T: Pow<T, Output = T> + Copy + Debug + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>,
+{
     Ok(match expr {
         Expr::Value(v) => *v,
         Expr::Variable(v) => *variables.get(v).ok_or_else(|| VariableNotFound(v.into()))?,
@@ -26,22 +29,6 @@ pub fn eval_expr(expr: &Expr<f64>, variables: &HashMap<String, f64>) -> Result<f
         Expr::Sub(a, b) => eval_expr(a.as_ref(), variables)? - eval_expr(b.as_ref(), variables)?,
         Expr::Mul(a, b) => eval_expr(a.as_ref(), variables)? * eval_expr(b.as_ref(), variables)?,
         Expr::Div(a, b) => eval_expr(a.as_ref(), variables)? / eval_expr(b.as_ref(), variables)?,
-        Expr::Pow(a, b) => eval_expr(a.as_ref(), variables)?.powf(eval_expr(b.as_ref(), variables)?),
-        _ => panic!("Found unexpected token {expr:?} while evaluating"),
-    })
-}
-
-pub fn eval_expr_with<T>(expr: &Expr<T>, variables: &HashMap<String, T>) -> Result<T, EvalError>
-where
-    T: Copy + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>,
-{
-    Ok(match expr {
-        Expr::Value(v) => *v,
-        Expr::Variable(v) => *variables.get(v).ok_or_else(|| VariableNotFound(v.into()))?,
-        Expr::Add(a, b) => eval_expr_with(a.as_ref(), variables)? + eval_expr_with(b.as_ref(), variables)?,
-        Expr::Sub(a, b) => eval_expr_with(a.as_ref(), variables)? - eval_expr_with(b.as_ref(), variables)?,
-        Expr::Mul(a, b) => eval_expr_with(a.as_ref(), variables)? * eval_expr_with(b.as_ref(), variables)?,
-        Expr::Div(a, b) => eval_expr_with(a.as_ref(), variables)? / eval_expr_with(b.as_ref(), variables)?,
-        _ => panic!("Not supported by type {}", type_name::<T>()),
+        Expr::Pow(a, b) => eval_expr(a.as_ref(), variables)?.pow(eval_expr(b.as_ref(), variables)?),
     })
 }

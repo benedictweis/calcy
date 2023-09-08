@@ -3,6 +3,9 @@ name = "calcy"
 version = "0.5.0"
 edition = "2021"
 
+[[bin]]
+name = "calcy"
+path = "src/bin/calcy/mod.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,4 +14,5 @@ clap = { version = "4.3.19", features = ["derive"] }
 console = "0.15.7"
 env_logger = "0.10.0"
 log = "0.4.20"
+num = "0.4.1"
 rustyline = "12.0.0"
