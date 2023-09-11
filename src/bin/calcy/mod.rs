@@ -1,10 +1,15 @@
-use crate::cli::Args;
+use crate::cli::{Args, PossibleDataType};
+use calcy::decimal::Decimal;
 use clap::Parser;
 use console::style;
 use log::{debug, warn};
+use num::traits::Pow;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::collections::HashMap;
+use std::fmt::{Debug, Display};
+use std::ops::{Add, Div, Mul, Sub};
+use std::str::FromStr;
 use std::time::Instant;
 use std::{fs, process};
 
@@ -19,7 +24,26 @@ fn main() {
         args.interactive = true;
     }
 
-    let mut variables = HashMap::new();
+    if args.exact {
+        args.datatype = PossibleDataType::decimal;
+    }
+
+    match args.datatype {
+        PossibleDataType::usize => calcy::<usize>(args),
+        PossibleDataType::u8 => calcy::<u8>(args),
+        PossibleDataType::u16 => calcy::<u16>(args),
+        PossibleDataType::u32 => calcy::<u32>(args),
+        PossibleDataType::f32 => calcy::<f32>(args),
+        PossibleDataType::f64 => calcy::<f64>(args),
+        PossibleDataType::decimal => calcy::<Decimal>(args),
+    }
+}
+
+fn calcy<T>(args: Args)
+where
+    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+{
+    let mut variables: HashMap<String, T> = HashMap::new();
     let mut exit_code = 0;
 
     if let Some(file_path) = args.file {
@@ -39,7 +63,10 @@ fn main() {
     process::exit(exit_code);
 }
 
-fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashMap<String, f64>, exit_code: &mut i32) {
+fn interpret_statement<T>(statement: String, benchmark: bool, variables: &mut HashMap<String, T>, exit_code: &mut i32)
+where
+    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+{
     if statement.to_lowercase() == "exit" {
         println!("Exiting...");
         process::exit(*exit_code);
@@ -58,14 +85,20 @@ fn interpret_statement(statement: String, benchmark: bool, variables: &mut HashM
     eval(statement, benchmark, variables, exit_code);
 }
 
-fn retrieve_variable(input: &str, variables: &mut HashMap<String, f64>) {
+fn retrieve_variable<T>(input: &str, variables: &mut HashMap<String, T>)
+where
+    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+{
     let (name, value) = input.split_once('=').unwrap();
-    variables.insert(name.into(), calcy::solve_vars(value.into(), variables).unwrap());
+    variables.insert(name.into(), calcy::solve_vars_with(value.into(), variables).unwrap());
 }
 
-fn eval(equation: String, benchmark: bool, variables: &mut HashMap<String, f64>, exit_code: &mut i32) {
+fn eval<T>(equation: String, benchmark: bool, variables: &mut HashMap<String, T>, exit_code: &mut i32)
+where
+    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+{
     let start = Instant::now();
-    let result = calcy::solve_vars(equation, variables);
+    let result = calcy::solve_vars_with::<T>(equation, variables);
     let duration = start.elapsed();
     match result {
         Ok(r) => {
@@ -83,7 +116,10 @@ fn eval(equation: String, benchmark: bool, variables: &mut HashMap<String, f64>,
     }
 }
 
-fn repl(variables: &mut HashMap<String, f64>, benchmark: bool) {
+fn repl<T>(variables: &mut HashMap<String, T>, benchmark: bool)
+where
+    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+{
     let mut rl = DefaultEditor::new().expect("cannot start repl");
     let history_path = std::env::temp_dir().join("calcy-history.txt");
     debug!("Using {history_path:?} as history file");

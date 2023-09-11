@@ -16,6 +16,7 @@ fn basic_addition() {
     assert_eq!(solve("25 + 2".into()), Ok(27.0));
     assert_eq!(solve("7 + 14".into()), Ok(21.0));
     assert_eq!(solve("10 + 22".into()), Ok(32.0));
+    assert_eq!(solve("(-10) + (-22)".into()), Ok(-32.0));
 }
 
 #[test]

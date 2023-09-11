@@ -58,17 +58,27 @@ pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Token<T>>, Pars
     while let Some((i, c)) = iter.next() {
         match c {
             '+' | '-' | '*' | '/' | '^' => {
-                if !tokens.is_empty() && !matches!(tokens.last(), Some(Token::Value(_))) && !matches!(tokens.last(), Some(Token::Variable(_))) && !matches!(tokens.last(), Some(Token::ClosingBrackets))
+                if tokens.is_empty() {
+                    tokens.push(parse_num(c, &mut iter)?);
+                } else if !tokens.is_empty() && matches!(tokens.last(), Some(Token::OpeningBrackets)) {
+                    tokens.pop();
+                    tokens.push(parse_num(c, &mut iter)?);
+                    iter.next();
+                } else if !tokens.is_empty()
+                    && !matches!(tokens.last(), Some(Token::Value(_)))
+                    && !matches!(tokens.last(), Some(Token::Variable(_)))
+                    && !matches!(tokens.last(), Some(Token::ClosingBrackets))
                 {
                     return Err(ParseError::UnexpectedTokenError(i, c));
-                }
-                match c {
-                    '+' => tokens.push(Token::AddSymbol),
-                    '-' => tokens.push(Token::SubSymbol),
-                    '*' => tokens.push(Token::MulSymbol),
-                    '/' => tokens.push(Token::DivSymbol),
-                    '^' => tokens.push(Token::PowSymbol),
-                    _ => unreachable!(),
+                } else {
+                    match c {
+                        '+' => tokens.push(Token::AddSymbol),
+                        '-' => tokens.push(Token::SubSymbol),
+                        '*' => tokens.push(Token::MulSymbol),
+                        '/' => tokens.push(Token::DivSymbol),
+                        '^' => tokens.push(Token::PowSymbol),
+                        _ => unreachable!(),
+                    }
                 }
             }
             '(' => {
