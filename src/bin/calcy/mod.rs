@@ -39,9 +39,12 @@ fn main() {
     }
 }
 
+trait TypeConstraint<T>: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T> {}
+impl<T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>> TypeConstraint<T> for T {}
+
 fn calcy<T>(args: Args)
 where
-    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+    T: TypeConstraint<T>
 {
     let mut variables: HashMap<String, T> = HashMap::new();
     let mut exit_code = 0;
@@ -65,7 +68,7 @@ where
 
 fn interpret_statement<T>(statement: String, benchmark: bool, variables: &mut HashMap<String, T>, exit_code: &mut i32)
 where
-    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+    T: TypeConstraint<T>,
 {
     if statement.to_lowercase() == "exit" {
         println!("Exiting...");
@@ -87,7 +90,7 @@ where
 
 fn retrieve_variable<T>(input: &str, variables: &mut HashMap<String, T>)
 where
-    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+    T: TypeConstraint<T>,
 {
     let (name, value) = input.split_once('=').unwrap();
     variables.insert(name.into(), calcy::solve_vars_with(value.into(), variables).unwrap());
@@ -95,7 +98,7 @@ where
 
 fn eval<T>(equation: String, benchmark: bool, variables: &mut HashMap<String, T>, exit_code: &mut i32)
 where
-    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+    T: TypeConstraint<T>,
 {
     let start = Instant::now();
     let result = calcy::solve_vars_with::<T>(equation, variables);
@@ -118,7 +121,7 @@ where
 
 fn repl<T>(variables: &mut HashMap<String, T>, benchmark: bool)
 where
-    T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>,
+    T: TypeConstraint<T>,
 {
     let mut rl = DefaultEditor::new().expect("cannot start repl");
     let history_path = std::env::temp_dir().join("calcy-history.txt");

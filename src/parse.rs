@@ -72,22 +72,22 @@ pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Token<T>>, Pars
                     return Err(ParseError::UnexpectedTokenError(i, c));
                 } else {
                     match c {
-                        '+' => tokens.push(Token::AddSymbol),
-                        '-' => tokens.push(Token::SubSymbol),
-                        '*' => tokens.push(Token::MulSymbol),
-                        '/' => tokens.push(Token::DivSymbol),
-                        '^' => tokens.push(Token::PowSymbol),
+                        '+' => tokens.push(AddSymbol),
+                        '-' => tokens.push(SubSymbol),
+                        '*' => tokens.push(MulSymbol),
+                        '/' => tokens.push(DivSymbol),
+                        '^' => tokens.push(PowSymbol),
                         _ => unreachable!(),
                     }
                 }
             }
             '(' => {
                 if !tokens.is_empty() && (matches!(tokens.last(), Some(Token::Value(_))) || matches!(tokens.last(), Some(Token::Variable(_)))) {
-                    tokens.push(Token::MulSymbol);
+                    tokens.push(MulSymbol);
                 }
-                tokens.push(Token::OpeningBrackets);
+                tokens.push(OpeningBrackets);
             }
-            ')' => tokens.push(Token::ClosingBrackets),
+            ')' => tokens.push(ClosingBrackets),
             '0'..='9' | '.' => tokens.push(parse_num(c, &mut iter)?),
             'a'..='z' | 'A'..='Z' | '"' => {
                 if !tokens.is_empty() && (matches!(tokens.last(), Some(Token::Value(_))) || matches!(tokens.last(), Some(Token::Variable(_)))) {

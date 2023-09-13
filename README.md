@@ -3,6 +3,6 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/benegamz/calcy/rust.yml?branch=master&style=flat-square)](https://github.com/benegamz/calcy/actions/workflows/rust.yml?query=master)
 
 # 🧮 calcy 
-A small and simple math solving libaray for rust
+A small and simple math solving library for rust
 
 ## usage
