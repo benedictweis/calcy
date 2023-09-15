@@ -41,6 +41,15 @@ impl From<EvalError> for Error {
     }
 }
 
+#[macro_export] macro_rules! solve {
+    ($ex:expr) => {
+            $crate::solve($ex)
+    };
+    ($ex:expr, $vars:expr) => {
+            $crate::solve_vars($ex, $vars)
+    };
+}
+
 pub fn solve(input: String) -> Result<f64, Error> {
     solve_with::<f64>(input)
 }

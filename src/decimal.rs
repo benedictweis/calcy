@@ -111,16 +111,22 @@ impl Sub for Decimal {
 impl Mul for Decimal {
     type Output = Decimal;
 
-    fn mul(self, _rhs: Self) -> Self::Output {
-        todo!()
+    fn mul(mut self, mut rhs: Self) -> Self::Output {
+        scale_smallest(&mut self, &mut rhs);
+        self.value *= rhs.value;
+        self.pack();
+        self
     }
 }
 
 impl Div for Decimal {
     type Output = Decimal;
 
-    fn div(self, _rhs: Self) -> Self::Output {
-        todo!()
+    fn div(mut self, mut rhs: Self) -> Self::Output {
+        scale_smallest(&mut self, &mut rhs);
+        self.value /= rhs.value;
+        self.pack();
+        self
     }
 }
 
