@@ -3,7 +3,7 @@ use crate::parse::Expr;
 use num::traits::Pow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Div, Mul, Rem, Sub};
 
 #[derive(Debug, PartialEq)]
 pub enum EvalError {
@@ -20,7 +20,7 @@ impl Display for EvalError {
 
 pub fn eval_expr<T>(expr: &Expr<T>, variables: &HashMap<String, T>) -> Result<T, EvalError>
 where
-    T: Pow<T, Output = T> + Copy + Debug + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>,
+    T: Pow<T, Output = T> + Copy + Debug + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Rem<Output = T>,
 {
     Ok(match expr {
         Expr::Value(v) => *v,
@@ -30,5 +30,6 @@ where
         Expr::Mul(a, b) => eval_expr(a.as_ref(), variables)? * eval_expr(b.as_ref(), variables)?,
         Expr::Div(a, b) => eval_expr(a.as_ref(), variables)? / eval_expr(b.as_ref(), variables)?,
         Expr::Pow(a, b) => eval_expr(a.as_ref(), variables)?.pow(eval_expr(b.as_ref(), variables)?),
+        Expr::Rem(a, b) => eval_expr(a.as_ref(), variables)? % eval_expr(b.as_ref(), variables)?,
     })
 }

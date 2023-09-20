@@ -1,7 +1,7 @@
 use num::traits::Pow;
 use num::FromPrimitive;
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -125,6 +125,17 @@ impl Div for Decimal {
     fn div(mut self, mut rhs: Self) -> Self::Output {
         scale_smallest(&mut self, &mut rhs);
         self.value /= rhs.value;
+        self.pack();
+        self
+    }
+}
+
+impl Rem for Decimal {
+    type Output = Decimal;
+
+    fn rem(mut self, mut rhs: Self) -> Self::Output {
+        scale_smallest(&mut self, &mut rhs);
+        self.value %= rhs.value;
         self.pack();
         self
     }

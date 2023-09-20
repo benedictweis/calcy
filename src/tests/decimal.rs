@@ -47,9 +47,14 @@ fn add() {
 
 #[test]
 fn sub() {
-    //assert_eq!(solve_with("0-0".into()), Ok(Decimal::from_str("0").unwrap()));
-    //assert_eq!(solve_with("1-2".into()), Ok(Decimal::from_str("-1").unwrap()));
-    //assert_eq!(solve_with("0.1-0.2".into()), Ok(Decimal::from_str("-0.1").unwrap()));
-    //assert_eq!(solve_with("0.1-0.1".into()), Ok(Decimal::from_str("0").unwrap()));
+    assert_eq!(solve_with("0-0".into()), Ok(Decimal::from_str("0").unwrap()));
+    assert_eq!(solve_with("1-2".into()), Ok(Decimal::from_str("-1").unwrap()));
+    assert_eq!(solve_with("0.1-0.2".into()), Ok(Decimal::from_str("-0.1").unwrap()));
+    assert_eq!(solve_with("0.1-0.1".into()), Ok(Decimal::from_str("0").unwrap()));
     assert_eq!(solve_with("0.25-0.35".into()), Ok(Decimal::from_str("-0.1").unwrap()));
+}
+
+#[test]
+fn rem() {
+    assert_eq!(solve_with("10 % 3".into()), Ok(Decimal::from_str("1").unwrap()));
 }

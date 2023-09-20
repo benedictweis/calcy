@@ -4,8 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::iter::{Enumerate, Peekable};
 use std::str::{Chars, FromStr};
 
-use crate::parse::Expr::{Add, Div, Mul, Pow, Sub};
-use crate::parse::Token::{AddSymbol, ClosingBrackets, DivSymbol, MulSymbol, OpeningBrackets, PowSymbol, SubSymbol};
+use crate::parse::Expr::{Add, Div, Mul, Pow, Rem, Sub};
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
@@ -39,6 +38,7 @@ pub enum Token<T> {
     MulSymbol,
     DivSymbol,
     PowSymbol,
+    RemSymbol,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -50,6 +50,7 @@ pub enum Expr<T> {
     Mul(Box<Expr<T>>, Box<Expr<T>>),
     Div(Box<Expr<T>>, Box<Expr<T>>),
     Pow(Box<Expr<T>>, Box<Expr<T>>),
+    Rem(Box<Expr<T>>, Box<Expr<T>>),
 }
 
 pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Token<T>>, ParseError> {
@@ -57,7 +58,7 @@ pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Token<T>>, Pars
     let mut iter = input.chars().enumerate().peekable();
     while let Some((i, c)) = iter.next() {
         match c {
-            '+' | '-' | '*' | '/' | '^' => {
+            '+' | '-' | '*' | '/' | '^' | '%' => {
                 if tokens.is_empty() {
                     tokens.push(parse_num(c, &mut iter)?);
                 } else if !tokens.is_empty() && matches!(tokens.last(), Some(Token::OpeningBrackets)) {
@@ -72,26 +73,27 @@ pub fn tokenize<T: Debug + FromStr>(input: String) -> Result<Vec<Token<T>>, Pars
                     return Err(ParseError::UnexpectedTokenError(i, c));
                 } else {
                     match c {
-                        '+' => tokens.push(AddSymbol),
-                        '-' => tokens.push(SubSymbol),
-                        '*' => tokens.push(MulSymbol),
-                        '/' => tokens.push(DivSymbol),
-                        '^' => tokens.push(PowSymbol),
+                        '+' => tokens.push(Token::AddSymbol),
+                        '-' => tokens.push(Token::SubSymbol),
+                        '*' => tokens.push(Token::MulSymbol),
+                        '/' => tokens.push(Token::DivSymbol),
+                        '^' => tokens.push(Token::PowSymbol),
+                        '%' => tokens.push(Token::RemSymbol),
                         _ => unreachable!(),
                     }
                 }
             }
             '(' => {
                 if !tokens.is_empty() && (matches!(tokens.last(), Some(Token::Value(_))) || matches!(tokens.last(), Some(Token::Variable(_)))) {
-                    tokens.push(MulSymbol);
+                    tokens.push(Token::MulSymbol);
                 }
-                tokens.push(OpeningBrackets);
+                tokens.push(Token::OpeningBrackets);
             }
-            ')' => tokens.push(ClosingBrackets),
+            ')' => tokens.push(Token::ClosingBrackets),
             '0'..='9' | '.' => tokens.push(parse_num(c, &mut iter)?),
             'a'..='z' | 'A'..='Z' | '"' => {
                 if !tokens.is_empty() && (matches!(tokens.last(), Some(Token::Value(_))) || matches!(tokens.last(), Some(Token::Variable(_)))) {
-                    tokens.push(MulSymbol);
+                    tokens.push(Token::MulSymbol);
                 }
                 tokens.push(parse_variable(c, &mut iter)?);
             }
@@ -151,11 +153,12 @@ pub fn parse_string<T: Debug + FromStr + PartialEq + Clone>(input: Vec<Token<T>>
         let operand = split_at_major_operand(input);
         let recurse = |d: Vec<Token<T>>| -> Result<Box<Expr<T>>, ParseError> { Ok(Box::new(parse_string::<T>(d)?)) };
         return match operand {
-            (AddSymbol, left, right) => Ok(Add(recurse(left)?, recurse(right)?)),
-            (SubSymbol, left, right) => Ok(Sub(recurse(left)?, recurse(right)?)),
-            (MulSymbol, left, right) => Ok(Mul(recurse(left)?, recurse(right)?)),
-            (DivSymbol, left, right) => Ok(Div(recurse(left)?, recurse(right)?)),
-            (PowSymbol, left, right) => Ok(Pow(recurse(left)?, recurse(right)?)),
+            (Token::AddSymbol, left, right) => Ok(Add(recurse(left)?, recurse(right)?)),
+            (Token::SubSymbol, left, right) => Ok(Sub(recurse(left)?, recurse(right)?)),
+            (Token::MulSymbol, left, right) => Ok(Mul(recurse(left)?, recurse(right)?)),
+            (Token::DivSymbol, left, right) => Ok(Div(recurse(left)?, recurse(right)?)),
+            (Token::PowSymbol, left, right) => Ok(Pow(recurse(left)?, recurse(right)?)),
+            (Token::RemSymbol, left, right) => Ok(Rem(recurse(left)?, recurse(right)?)),
             _ => unreachable!(),
         };
     }
@@ -182,10 +185,10 @@ fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Token<T>>) ->
     };
     for (index, token) in input.iter().enumerate() {
         match token {
-            OpeningBrackets => {
+            Token::OpeningBrackets => {
                 level += 1;
             }
-            ClosingBrackets => {
+            Token::ClosingBrackets => {
                 level -= 1;
             }
             _ => {
@@ -210,11 +213,12 @@ fn split_at_major_operand<T: Debug + PartialEq + Clone>(input: Vec<Token<T>>) ->
 
 fn operand_value<T: Debug>(o: &Token<T>) -> usize {
     match o {
-        AddSymbol => 10,
-        SubSymbol => 9,
-        MulSymbol => 8,
-        DivSymbol => 7,
-        PowSymbol => 6,
+        Token::AddSymbol => 10,
+        Token::SubSymbol => 9,
+        Token::MulSymbol => 8,
+        Token::DivSymbol => 7,
+        Token::RemSymbol => 6,
+        Token::PowSymbol => 5,
         _ => 0,
     }
 }

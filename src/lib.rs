@@ -5,7 +5,7 @@ use num::traits::Pow;
 use std::any::type_name;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::str::FromStr;
 
 pub mod decimal;
@@ -60,14 +60,14 @@ pub fn solve_vars(input: String, variables: &HashMap<String, f64>) -> Result<f64
 
 pub fn solve_with<T: PartialEq>(input: String) -> Result<T, Error>
 where
-    T: Pow<T, Output = T> + Debug + FromStr + Copy + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>,
+    T: Pow<T, Output = T> + Debug + FromStr + Copy + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Rem<Output = T>,
 {
     solve_vars_with(input, &HashMap::new())
 }
 
 pub fn solve_vars_with<T: PartialEq>(input: String, variables: &HashMap<String, T>) -> Result<T, Error>
 where
-    T: Pow<T, Output = T> + Debug + FromStr + Copy + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>,
+    T: Pow<T, Output = T> + Debug + FromStr + Copy + Sized + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Rem<Output = T>,
 {
     info!("Solving equation {input} with type {} and variables {variables:?}", type_name::<T>());
     let tokenized_input = tokenize(input)?;

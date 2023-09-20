@@ -8,7 +8,7 @@ use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::str::FromStr;
 use std::time::Instant;
 use std::{fs, process};
@@ -39,8 +39,8 @@ fn main() {
     }
 }
 
-trait TypeConstraint<T>: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T> {}
-impl<T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T>> TypeConstraint<T> for T {}
+trait TypeConstraint<T>: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T> + Rem<Output = T> {}
+impl<T: Debug + Display + FromStr + Copy + PartialEq + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T, Output = T> +  Rem<Output = T>> TypeConstraint<T> for T {}
 
 fn calcy<T>(args: Args)
 where
